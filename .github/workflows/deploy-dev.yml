@@ -52,11 +52,31 @@ jobs:
 
       - uses: hashicorp/setup-terraform@v3
 
+      - name: Restore Terraform state cache
+        id: tfstate-cache-restore
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            infra/terraform.tfstate
+            infra/terraform.tfstate.backup
+          key: tfstate-dev-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            tfstate-dev-${{ github.ref_name }}-
+
       - name: Terraform apply
         working-directory: infra
         run: |
           terraform init
           terraform apply -auto-approve -var-file=environments/dev.tfvars
+
+      - name: Save Terraform state cache
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            infra/terraform.tfstate
+            infra/terraform.tfstate.backup
+          key: ${{ steps.tfstate-cache-restore.outputs.cache-primary-key }}
 
       - name: Write deploy marker to S3
         working-directory: infra
