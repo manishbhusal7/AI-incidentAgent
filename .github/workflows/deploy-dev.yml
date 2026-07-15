@@ -17,6 +17,7 @@ permissions:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: ${{ secrets.AWS_ROLE_TO_ASSUME != '' || secrets.AWS_ACCESS_KEY_ID != '' }}
     # Configure repository secrets (GitHub Secrets UI — never commit these):
     #   AWS_ROLE_TO_ASSUME  (OIDC, preferred) OR AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
     # Anthropic API key: set in AWS SSM SecureString after deploy, not in GitHub.
@@ -48,15 +49,40 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ env.AWS_REGION }}
-        continue-on-error: true
+
+      - name: Verify AWS credentials
+        run: aws sts get-caller-identity
 
       - uses: hashicorp/setup-terraform@v3
 
-      - name: Terraform apply
+      - name: Bootstrap Terraform remote state
+        id: tf_state
+        run: |
+          ACCOUNT_ID="$(aws sts get-caller-identity --query Account --output text)"
+          STATE_BUCKET="aita-terraform-state-${ACCOUNT_ID}"
+          if ! aws s3api head-bucket --bucket "${STATE_BUCKET}" 2>/dev/null; then
+            aws s3api create-bucket --bucket "${STATE_BUCKET}" --region "${AWS_REGION}"
+          fi
+          aws s3api put-bucket-versioning \
+            --bucket "${STATE_BUCKET}" \
+            --versioning-configuration Status=Enabled
+          echo "bucket=${STATE_BUCKET}" >> "${GITHUB_OUTPUT}"
+
+      - name: Terraform init
         working-directory: infra
         run: |
-          terraform init
-          terraform apply -auto-approve -var-file=environments/dev.tfvars
+          terraform init \
+            -backend-config="bucket=${{ steps.tf_state.outputs.bucket }}" \
+            -backend-config="key=ai-incident-triage-agent/dev/terraform.tfstate" \
+            -backend-config="region=${AWS_REGION}" \
+            -backend-config="encrypt=true"
+
+      - name: Adopt existing AWS resources into state
+        run: bash scripts/adopt_terraform_state.sh
+
+      - name: Terraform apply
+        working-directory: infra
+        run: terraform apply -auto-approve -var-file=environments/dev.tfvars
 
       - name: Write deploy marker to S3
         working-directory: infra

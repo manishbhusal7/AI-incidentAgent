@@ -58,6 +58,11 @@ resource "aws_ssm_parameter" "anthropic_api_key" {
   description = "Anthropic Claude API key for incident agent"
   type        = "SecureString"
   value       = var.anthropic_api_key != "" ? var.anthropic_api_key : "REPLACE_ME"
+  overwrite   = true
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
 
 resource "aws_ssm_parameter" "claude_usage" {
@@ -65,6 +70,7 @@ resource "aws_ssm_parameter" "claude_usage" {
   description = "Monthly Claude usage counter YYYY-MM:count"
   type        = "String"
   value       = "1970-01:0"
+  overwrite   = true
 
   lifecycle {
     ignore_changes = [value]

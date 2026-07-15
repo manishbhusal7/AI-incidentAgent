@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "ai-incident-triage-agent"
 version = "1.0.0"
@@ -16,6 +20,9 @@ dev = [
   "moto[cloudwatch,logs,s3,sns,ssm]>=5.0.0",
   "ruff>=0.6.0",
 ]
+
+[tool.setuptools]
+packages = []
 
 [tool.pytest.ini_options]
 testpaths = ["apps", "agent"]
