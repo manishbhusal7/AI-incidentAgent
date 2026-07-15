@@ -154,6 +154,18 @@ resource "aws_iam_role_policy" "loan" {
             "cloudwatch:namespace" = local.metric_ns
           }
         }
+      },
+      {
+        Sid    = "ReadIncidentReports"
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject",
+          "s3:ListBucket"
+        ]
+        Resource = [
+          aws_s3_bucket.artifacts.arn,
+          "${aws_s3_bucket.artifacts.arn}/incidents/*"
+        ]
       }
     ]
   })
@@ -171,7 +183,7 @@ resource "aws_lambda_function" "loan" {
   runtime          = "python3.12"
   filename         = data.archive_file.loan_zip.output_path
   source_code_hash = data.archive_file.loan_zip.output_base64sha256
-  timeout          = 15
+  timeout          = 30
   memory_size      = 256
 
   environment {
@@ -182,6 +194,8 @@ resource "aws_lambda_function" "loan" {
       DEPLOY_VERSION        = "1.0.0"
       CHAOS_LATENCY_SECONDS = "3"
       RESTART_TOKEN         = "0"
+      ARTIFACTS_BUCKET      = aws_s3_bucket.artifacts.bucket
+      REPORT_PREFIX         = "incidents/"
     }
   }
 

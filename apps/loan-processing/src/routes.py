@@ -8,6 +8,7 @@ from typing import Any
 
 from chaos import apply_chaos, list_scenarios
 from logging_utils import get_logger
+from report_viewer import handle_reports_api, viewer_html
 
 logger = get_logger(__name__)
 
@@ -139,6 +140,15 @@ def handle_request(
     normalized = path.rstrip("/") or "/"
     if method == "GET" and normalized in ("/health", "/"):
         return handle_health(request_id)
+    if method == "GET" and normalized == "/reports":
+        return {
+            "status_code": 200,
+            "content_type": "text/html",
+            "body": viewer_html(),
+        }
+    if method == "GET" and normalized.startswith("/reports/api"):
+        query = event.get("queryStringParameters") or {}
+        return handle_reports_api(normalized, query)
     if method == "POST" and normalized == "/process-loan":
         return handle_process_loan(event, request_id)
     # Interview Demo 2 primary trigger

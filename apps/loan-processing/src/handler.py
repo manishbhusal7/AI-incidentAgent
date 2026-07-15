@@ -14,10 +14,22 @@ from routes import handle_request
 logger = get_logger(__name__)
 
 
-def _response(status: int, body: dict[str, Any]) -> dict[str, Any]:
+def _response(status: int, body: dict[str, Any] | str, *, content_type: str = "application/json") -> dict[str, Any]:
+    if content_type == "text/html":
+        return {
+            "statusCode": status,
+            "headers": {
+                "Content-Type": "text/html; charset=utf-8",
+                "Cache-Control": "no-store",
+            },
+            "body": body if isinstance(body, str) else str(body),
+        }
     return {
         "statusCode": status,
-        "headers": {"Content-Type": "application/json"},
+        "headers": {
+            "Content-Type": "application/json",
+            "Cache-Control": "no-store",
+        },
         "body": json.dumps(body),
     }
 
@@ -70,7 +82,11 @@ def handler(event: dict[str, Any], context: Any) -> dict[str, Any]:
             emit_metric("ProcessingLatencyMs", float(result["latency_ms"]), unit="Milliseconds")
 
         status = int(result.pop("status_code", 200))
-        return _response(status, result)
+        html_body = result.pop("body", None)
+        content_type = result.pop("content_type", "application/json")
+        if content_type == "text/html" and isinstance(html_body, str):
+            return _response(status, html_body, content_type=content_type)
+        return _response(status, result, content_type=content_type)
 
     except Exception as exc:  # noqa: BLE001 — intentional for demo error surface
         logger.exception(

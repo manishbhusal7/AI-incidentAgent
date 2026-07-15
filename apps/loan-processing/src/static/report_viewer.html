@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>AI Incident Report</title>
+  <style>
+    :root {
+      --bg: #0f1419;
+      --surface: #1a2332;
+      --surface2: #243044;
+      --border: #2d3a4f;
+      --text: #e8edf4;
+      --muted: #8b9cb3;
+      --accent: #3b82f6;
+      --green: #22c55e;
+      --yellow: #eab308;
+      --red: #ef4444;
+      --purple: #a855f7;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #1e3a5f 0%, #0f1419 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 1.25rem 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    .header h1 span { color: var(--accent); }
+
+    .header-actions {
+      display: flex;
+      gap: 0.75rem;
+      align-items: center;
+    }
+
+    select, button {
+      background: var(--surface2);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.55rem 1rem;
+      font-size: 0.95rem;
+      cursor: pointer;
+    }
+
+    button:hover, select:hover { border-color: var(--accent); }
+
+    button.primary {
+      background: var(--accent);
+      border-color: var(--accent);
+      font-weight: 600;
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 0;
+      min-height: calc(100vh - 72px);
+    }
+
+    @media (max-width: 900px) {
+      .layout { grid-template-columns: 1fr; }
+      .sidebar { border-right: none; border-bottom: 1px solid var(--border); }
+    }
+
+    .sidebar {
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      padding: 1.25rem;
+      overflow-y: auto;
+    }
+
+    .sidebar h2 {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .report-list { list-style: none; }
+
+    .report-list li {
+      padding: 0.85rem;
+      border-radius: 8px;
+      margin-bottom: 0.5rem;
+      cursor: pointer;
+      border: 1px solid transparent;
+      transition: background 0.15s;
+    }
+
+    .report-list li:hover { background: var(--surface2); }
+    .report-list li.active {
+      background: var(--surface2);
+      border-color: var(--accent);
+    }
+
+    .report-list .action {
+      font-weight: 600;
+      font-size: 0.9rem;
+      margin-bottom: 0.25rem;
+    }
+
+    .report-list .meta {
+      font-size: 0.8rem;
+      color: var(--muted);
+    }
+
+    .main {
+      padding: 2rem;
+      overflow-y: auto;
+      max-width: 1100px;
+    }
+
+    .empty, .loading {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--muted);
+      font-size: 1.1rem;
+    }
+
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-bottom: 1.75rem;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4rem;
+      padding: 0.45rem 0.9rem;
+      border-radius: 999px;
+      font-size: 0.9rem;
+      font-weight: 600;
+      border: 1px solid var(--border);
+      background: var(--surface);
+    }
+
+    .badge.confidence { border-color: var(--purple); color: #d8b4fe; }
+    .badge.action { border-color: var(--accent); color: #93c5fd; }
+    .badge.ok { background: rgba(34, 197, 94, 0.15); border-color: var(--green); color: #86efac; }
+    .badge.warn { background: rgba(234, 179, 8, 0.15); border-color: var(--yellow); color: #fde047; }
+    .badge.blocked { background: rgba(239, 68, 68, 0.15); border-color: var(--red); color: #fca5a5; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem 1.75rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .card h3 {
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted);
+      margin-bottom: 0.75rem;
+    }
+
+    .card p, .card li {
+      font-size: 1.15rem;
+      line-height: 1.7;
+    }
+
+    .summary-text {
+      font-size: 1.35rem !important;
+      font-weight: 500;
+    }
+
+    .evidence-list { list-style: none; }
+
+    .evidence-list li {
+      padding: 1rem;
+      background: var(--surface2);
+      border-radius: 8px;
+      margin-bottom: 0.75rem;
+      font-size: 1.05rem !important;
+    }
+
+    .evidence-list .source {
+      display: inline-block;
+      font-size: 0.75rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      color: var(--accent);
+      margin-bottom: 0.35rem;
+    }
+
+    .guardrail-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+    }
+
+    .guardrail-item label {
+      display: block;
+      font-size: 0.75rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 0.25rem;
+    }
+
+    .guardrail-item strong { font-size: 1.1rem; }
+
+    .tools {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+    }
+
+    .tool-tag {
+      background: var(--surface2);
+      padding: 0.35rem 0.75rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-family: ui-monospace, monospace;
+    }
+
+    .footer-note {
+      margin-top: 2rem;
+      font-size: 0.85rem;
+      color: var(--muted);
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <header class="header">
+    <h1><span>AI</span> Incident Triage Report</h1>
+    <div class="header-actions">
+      <select id="reportSelect" aria-label="Select report"></select>
+      <button class="primary" id="refreshBtn">Refresh</button>
+      <span id="liveStatus" style="font-size:0.85rem;color:var(--muted)"></span>
+    </div>
+  </header>
+
+  <div class="layout">
+    <aside class="sidebar">
+      <h2>Recent Incidents</h2>
+      <ul class="report-list" id="reportList"></ul>
+    </aside>
+
+    <main class="main" id="main">
+      <div class="loading" id="loading">Loading latest incident report…</div>
+    </main>
+  </div>
+
+  <script>
+    const API = window.location.origin;
+
+    function esc(s) {
+      const d = document.createElement("div");
+      d.textContent = s ?? "";
+      return d.innerHTML;
+    }
+
+    function guardrailBadge(g) {
+      if (!g.approved && g.requires_human_approval) return ["warn", "Human approval required"];
+      if (!g.approved) return ["blocked", "Blocked"];
+      if (g.executed) return ["ok", "Approved & executed"];
+      return ["ok", "Approved"];
+    }
+
+    function renderReport(data) {
+      const r = data.report || {};
+      const g = data.guardrail || {};
+      const [badgeClass, badgeLabel] = guardrailBadge(g);
+      const tools = (r.tool_calls_made || []).map(t =>
+        `<span class="tool-tag">${esc(t)}</span>`
+      ).join("") || "<span class='muted'>none</span>";
+
+      const evidence = (r.evidence || []).map(e => `
+        <li>
+          <div class="source">${esc(e.source)}</div>
+          ${esc(e.summary)}
+        </li>
+      `).join("") || "<li>No evidence items recorded</li>";
+
+      document.getElementById("main").innerHTML = `
+        <div class="badges">
+          <span class="badge confidence">Confidence: ${esc(String(r.confidence_score))}%</span>
+          <span class="badge action">Action: ${esc(r.recommended_action)}</span>
+          <span class="badge ${badgeClass}">Guardrail: ${esc(badgeLabel)}</span>
+          ${r.alarm_name ? `<span class="badge">Alarm: ${esc(r.alarm_name)}</span>` : ""}
+        </div>
+
+        <div class="card">
+          <h3>Incident Summary</h3>
+          <p class="summary-text">${esc(r.incident_summary)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Root Cause</h3>
+          <p>${esc(r.root_cause)}</p>
+        </div>
+
+        <div class="card">
+          <h3>Evidence Gathered</h3>
+          <ul class="evidence-list">${evidence}</ul>
+        </div>
+
+        <div class="card">
+          <h3>Guardrail Decision</h3>
+          <div class="guardrail-grid">
+            <div class="guardrail-item"><label>Approved</label><strong>${g.approved ? "Yes" : "No"}</strong></div>
+            <div class="guardrail-item"><label>Executed</label><strong>${g.executed ? "Yes" : "No"}</strong></div>
+            <div class="guardrail-item"><label>Human approval</label><strong>${g.requires_human_approval ? "Required" : "Not required"}</strong></div>
+            <div class="guardrail-item"><label>Reason</label><strong>${esc(g.reason)}</strong></div>
+          </div>
+        </div>
+
+        <div class="card">
+          <h3>Tools Used by Claude</h3>
+          <div class="tools">${tools}</div>
+        </div>
+
+        ${r.raw_model_notes ? `
+        <div class="card">
+          <h3>Model Notes</h3>
+          <p style="font-size:1rem">${esc(r.raw_model_notes)}</p>
+        </div>` : ""}
+
+        <p class="footer-note">Report ID: ${esc(data.incident_id || "n/a")} · Service: ${esc(r.service || "loan-processing")}${data.created_at ? " · Saved: " + esc(new Date(data.created_at).toLocaleString()) : ""}</p>
+      `;
+    }
+
+    async function fetchJson(path) {
+      const res = await fetch(API + path);
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      return res.json();
+    }
+
+    async function loadReport(key) {
+      document.getElementById("loading").style.display = "block";
+      const payload = key
+        ? await fetchJson("/reports/api/report?key=" + encodeURIComponent(key) + "&_=" + Date.now())
+        : await fetchJson("/reports/api/latest?_=" + Date.now());
+      const reportData = payload.report || {};
+      if (payload.json_key) {
+        const match = (window._reportIndex || []).find(r => r.json_key === payload.json_key);
+        if (match && match.created_at) reportData.created_at = match.created_at;
+      }
+      renderReport(reportData);
+      document.getElementById("loading").style.display = "none";
+      document.getElementById("liveStatus").textContent =
+        "Updated " + new Date().toLocaleTimeString();
+    }
+
+    async function loadList(selectKey) {
+      const data = await fetchJson("/reports/api/list?_=" + Date.now());
+      const reports = data.reports || [];
+      window._reportIndex = reports;
+      const list = document.getElementById("reportList");
+      const select = document.getElementById("reportSelect");
+
+      list.innerHTML = "";
+      select.innerHTML = "";
+
+      if (!reports.length) {
+        document.getElementById("main").innerHTML =
+          '<div class="empty">No incident reports yet. Run a demo scenario, then click Refresh.</div>';
+        return;
+      }
+
+      reports.forEach((item, i) => {
+        const li = document.createElement("li");
+        li.innerHTML = `
+          <div class="action">${esc(item.recommended_action)}</div>
+          <div class="meta">${esc(String(item.confidence_score))}% · ${item.approved ? "approved" : "blocked"}${item.created_at ? " · " + esc(new Date(item.created_at).toLocaleTimeString()) : ""}</div>
+        `;
+        li.onclick = () => {
+          document.querySelectorAll(".report-list li").forEach(el => el.classList.remove("active"));
+          li.classList.add("active");
+          select.value = item.json_key;
+          loadReport(item.json_key);
+        };
+        list.appendChild(li);
+
+        const opt = document.createElement("option");
+        opt.value = item.json_key;
+        opt.textContent = `${item.recommended_action} (${item.confidence_score}%)`;
+        select.appendChild(opt);
+
+        if (!selectKey && i === 0) {
+          li.classList.add("active");
+          select.value = item.json_key;
+        }
+      });
+
+      await loadReport(selectKey || reports[0].json_key);
+    }
+
+    document.getElementById("refreshBtn").onclick = () => loadList();
+    document.getElementById("reportSelect").onchange = (e) => {
+      loadReport(e.target.value);
+      document.querySelectorAll(".report-list li").forEach((li, i) => {
+        li.classList.toggle("active", li.querySelector(".action").textContent ===
+          e.target.options[e.target.selectedIndex].textContent.split(" (")[0]);
+      });
+    };
+
+    loadList().catch(err => {
+      document.getElementById("main").innerHTML =
+        `<div class="empty">Could not load reports: ${esc(err.message)}</div>`;
+    });
+
+    // Demo mode: auto-refresh every 5s so new runs appear without manual clicks.
+    // Open: /reports?live=1
+    if (new URLSearchParams(window.location.search).get("live") === "1") {
+      document.getElementById("liveStatus").textContent = "Live mode: refreshing every 5s";
+      setInterval(() => loadList(), 5000);
+    }
+  </script>
+</body>
+</html>

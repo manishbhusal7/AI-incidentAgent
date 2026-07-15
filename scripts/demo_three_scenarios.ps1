@@ -87,6 +87,7 @@ if (($Scenario -eq "all") -or ($Scenario -eq "1")) {
   Write-Host (">>> confidence: " + $r.report.confidence_score)
   Write-Host (">>> guardrail approved: " + $r.guardrail.approved + " executed: " + $r.guardrail.executed)
   Write-Host (">>> report: " + $r.persisted.md_key)
+  Write-Host (">>> View in browser: " + $Api + "/reports?live=1")
 }
 
 if (($Scenario -eq "all") -or ($Scenario -eq "2")) {
@@ -128,6 +129,7 @@ if (($Scenario -eq "all") -or ($Scenario -eq "2")) {
     Write-Host ">>> NOTE: token unchanged - check AUTO_EXECUTE_APPROVED / IAM"
   }
   Write-Host (">>> report: " + $r.persisted.md_key)
+  Write-Host (">>> View in browser: " + $Api + "/reports?live=1")
 }
 
 if (($Scenario -eq "all") -or ($Scenario -eq "3")) {
@@ -143,8 +145,10 @@ if (($Scenario -eq "all") -or ($Scenario -eq "3")) {
   Write-Host (">>> executed: " + $r.guardrail.executed)
   Write-Host (">>> reason: " + $r.guardrail.reason)
   Write-Host (">>> report: " + $r.persisted.md_key)
+  Write-Host (">>> View in browser: " + $Api + "/reports?live=1")
 }
 
 Write-Host ""
+Write-Host ("Open report viewer: " + $Api + "/reports?live=1")
 Write-Host ("All selected demos complete. Reports in s3://" + $Bucket + "/incidents/")
 aws s3 ls ("s3://" + $Bucket + "/incidents/") --region $Region | Select-Object -Last 6
