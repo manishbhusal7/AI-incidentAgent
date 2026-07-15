@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.eggs/
+dist/
+build/
+.venv/
+venv/
+.env
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg
+
+# IDE
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# Terraform
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfplan
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Lambda packages (regenerate with scripts/package_lambdas.ps1)
+infra/build/
+*.zip
+
+# Local downloads
+incident-report.md
+
+# Secrets / local
+secrets/
+*.pem
+.anthropic_key
+
+# OS
+Thumbs.db
+
+# Docs (push later manually)
+*.md

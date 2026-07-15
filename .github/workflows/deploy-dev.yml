@@ -1,0 +1,76 @@
+name: Deploy Dev
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+    paths:
+      - "apps/**"
+      - "agent/**"
+      - "infra/**"
+      - "scripts/**"
+
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    # Configure repository secrets (GitHub Secrets UI — never commit these):
+    #   AWS_ROLE_TO_ASSUME  (OIDC, preferred) OR AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+    # Anthropic API key: set in AWS SSM SecureString after deploy, not in GitHub.
+    env:
+      AWS_REGION: us-east-1
+      # Anthropic key is NOT stored in the repo. Set it in AWS SSM after deploy:
+      # aws ssm put-parameter --name "/ai-incident-triage-agent/dev/anthropic_api_key" ...
+      TF_VAR_anthropic_api_key: ""
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Package Lambdas
+        shell: bash
+        run: |
+          mkdir -p infra/build/agent_pkg
+          cp -r agent/src/* infra/build/agent_pkg/
+          pip install -r agent/requirements.txt -t infra/build/agent_pkg
+          (cd infra/build/agent_pkg && zip -r ../agent.zip .)
+          (cd apps/loan-processing/src && zip -r ../../../infra/build/loan-processing.zip .)
+
+      - name: Configure AWS credentials (OIDC preferred)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_TO_ASSUME }}
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+        continue-on-error: true
+
+      - uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform apply
+        working-directory: infra
+        run: |
+          terraform init
+          terraform apply -auto-approve -var-file=environments/dev.tfvars
+
+      - name: Write deploy marker to S3
+        working-directory: infra
+        run: |
+          BUCKET=$(terraform output -raw artifacts_bucket)
+          SHA=${{ github.sha }}
+          cat > /tmp/deploy.json <<EOF
+          {
+            "version": "${{ github.run_number }}",
+            "git_sha": "$SHA",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "change_notes": "${{ github.event.head_commit.message }}",
+            "service": "loan-processing",
+            "actor": "${{ github.actor }}"
+          }
+          EOF
+          aws s3 cp /tmp/deploy.json "s3://$BUCKET/deploys/$(date -u +%Y%m%d%H%M%S)-$SHA.json"
