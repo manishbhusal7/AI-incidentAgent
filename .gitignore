@@ -50,3 +50,4 @@ Thumbs.db
 
 # Docs (push later manually)
 *.md
+!README.md
